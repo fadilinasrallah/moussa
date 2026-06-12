@@ -1,0 +1,514 @@
+
+\documentclass[11pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage{listings}
+\geometry{margin=2.1cm}
+\hypersetup{colorlinks=true, linkcolor=blue, urlcolor=blue}
+\definecolor{codebg}{RGB}{245,246,248}
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  breaklines=true,
+  columns=fullflexible
+}
+\title{\textbf{Questions possibles du professeur avec réponses}}
+\date{12 juin 2026}
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Questions sur le principe LSB}
+
+\subsection{1. Qu'est-ce que la stéganographie LSB ?}
+
+La stéganographie LSB consiste à cacher un message dans le bit de poids faible des valeurs de pixels. Dans une image RGB, chaque pixel contient trois valeurs : rouge, vert et bleu. Modifier le dernier bit change une valeur au maximum de 1 sur 255, ce qui est généralement invisible à l'oeil nu.
+
+\subsection{2. Pourquoi la modification est-elle difficile à voir ?}
+
+Parce que le bit de poids faible a une influence très faible sur l'intensité. Par exemple, passer de 120 à 121 produit une différence visuelle presque imperceptible.
+
+\subsection{3. Si c'est invisible, comment peut-on le détecter ?}
+
+Même si c'est peu visible, cela peut modifier les statistiques des bits faibles. Les plans LSB deviennent souvent plus aléatoires. On peut mesurer cela avec des ratios de bits, des tests pair/impair, de l'autocorrélation et des caractéristiques de texture.
+
+\subsection{4. Pourquoi utiliser les trois canaux RGB ?}
+
+Parce que le message peut être réparti dans les valeurs rouge, vert et bleu. Si on convertit l'image en niveau de gris trop tôt, on perd une partie importante du signal LSB.
+
+\subsection{5. Pourquoi sauvegarder l'image stego en PNG ?}
+
+Le PNG est sans perte. Il garde les valeurs exactes des pixels. Le JPEG est avec perte et peut modifier les pixels, donc détruire les bits LSB et rendre le message impossible à extraire.
+
+\subsection{6. Pourquoi l'extraction ne marche pas bien sur JPEG ?}
+
+La compression JPEG transforme les valeurs de pixels. Elle ne préserve pas exactement les bits de poids faible. Donc les bits qui contiennent le message peuvent être remplacés par d'autres valeurs.
+
+\subsection{7. Est-ce que le message est crypté ?}
+
+Non. Le projet cache le message, mais ne le chiffre pas. La stéganographie masque l'existence du message, tandis que la cryptographie rend son contenu illisible. On pourrait ajouter du chiffrement avant l'insertion LSB.
+
+\subsection{8. Que contient l'en-tête LSB ?}
+
+Les 32 premiers bits indiquent la longueur du payload en bits. Cela permet à l'extraction de savoir combien de bits lire pour reconstruire le message.
+
+\subsection{9. Pourquoi utiliser un marqueur de fin ?}
+
+Le marqueur de fin permet de vérifier que le message extrait est complet et valide. Sans marqueur, une image propre pourrait parfois produire des caractères aléatoires.
+
+\subsection{10. Quelle est la capacité de stockage ?}
+
+Pour une image RGB de 512 x 512, il y a :
+
+\begin{lstlisting}
+512 x 512 x 3 = 786 432 bits LSB
+\end{lstlisting}
+
+Après les 32 bits d'en-tête, cela donne environ 98 300 octets disponibles.
+
+\hrule
+
+\section{Questions sur le traitement d'images}
+
+\subsection{11. Où est l'aspect traitement d'images dans ce projet ?}
+
+Il est dans la représentation et l'analyse de l'image :
+
+\begin{itemize}
+\item séparation en canaux rouge, vert, bleu ;
+\item extraction des plans LSB ;
+\item visualisation de la différence propre/stego ;
+\item extraction LBP ;
+\item extraction GLCM ;
+\item histogrammes RGB ;
+\item statistiques des bits faibles.
+\end{itemize}
+
+\subsection{12. Pourquoi visualiser les canaux R, V, B ?}
+
+Cela montre que l'image RGB est composée de trois matrices. Comme le message est caché dans les valeurs RGB, il est logique d'analyser les trois canaux séparément.
+
+\subsection{13. Pourquoi visualiser les plans LSB ?}
+
+Parce que c'est exactement la couche dans laquelle le message est inséré. Le plan LSB est une image binaire qui montre les bits faibles des pixels.
+
+\subsection{14. Pourquoi afficher une différence amplifiée ?}
+
+La différence réelle entre image propre et image stego est souvent de 0 ou 1 sur une valeur RGB. Elle est donc presque invisible. En l'amplifiant, on rend visibles les endroits où une modification a eu lieu.
+
+\subsection{15. Qu'est-ce que LBP ?}
+
+LBP signifie Local Binary Pattern. C'est un descripteur de texture. Il compare un pixel avec ses voisins et encode le motif local. Une modification LSB peut changer certains motifs locaux.
+
+\subsection{16. Pourquoi utiliser LBP dans ce projet ?}
+
+Parce que la stéganographie peut perturber les micro-textures. LBP donne une représentation compacte des motifs locaux, utile pour la classification.
+
+\subsection{17. Qu'est-ce que GLCM ?}
+
+GLCM signifie Gray-Level Co-occurrence Matrix. Elle mesure la fréquence de co-occurrence de niveaux de gris à une certaine distance et direction. Elle décrit la texture spatiale.
+
+\subsection{18. Pourquoi utiliser GLCM ?}
+
+Parce que les images naturelles ont des relations spatiales entre pixels. Une insertion de bruit LSB peut modifier légèrement ces relations.
+
+\subsection{19. Pourquoi utiliser des histogrammes ?}
+
+Les histogrammes décrivent la distribution des intensités. La stéganographie peut modifier les fréquences de valeurs paires et impaires, donc les histogrammes peuvent fournir un signal utile.
+
+\subsection{20. Pourquoi calculer les ratios LSB ?}
+
+Dans une image naturelle, les bits faibles ne sont pas toujours parfaitement équilibrés. Après insertion LSB, ils peuvent devenir plus proches d'une distribution aléatoire, souvent proche de 50 \% de 1 et 50 \% de 0.
+
+\subsection{21. Est-ce que le ratio LSB suffit pour détecter ?}
+
+Non. Il donne un indice, mais il n'est pas suffisant seul. C'est pourquoi on combine plusieurs caractéristiques.
+
+\subsection{22. Pourquoi redimensionner toutes les images ?}
+
+Pour que les modèles reçoivent toujours des caractéristiques calculées sur une taille cohérente. Ici, on utilise 512 x 512, comme les images du dataset ALASKA utilisé.
+
+\subsection{23. Est-ce que le redimensionnement peut détruire un message LSB ?}
+
+Oui. Si on redimensionne après avoir caché le message, les bits LSB peuvent être modifiés. C'est pourquoi l'application redimensionne l'image avant l'insertion.
+
+\subsection{24. Pourquoi convertir en RGB ?}
+
+Pour garantir que toutes les images ont trois canaux et que le pipeline est identique pour tous les formats d'entrée.
+
+\subsection{25. Pourquoi ne pas travailler seulement en niveau de gris ?}
+
+Parce que le message est caché dans les trois canaux RGB. La conversion en gris mélangerait les canaux et détruirait une partie du signal.
+
+\hrule
+
+\section{Questions sur le dataset}
+
+\subsection{26. Quel dataset est utilisé ?}
+
+Le projet utilise \texttt{ALASKA\_v2\_JPG\_512\_QF95\_COLOR}, un ensemble de 20 000 images couleur JPEG 512 x 512 à qualité 95.
+
+\subsection{27. Combien d'images ont été utilisées dans le dernier entraînement ?}
+
+Le dernier entraînement utilisé dans l'application a pris les 20 000 images cover ALASKA et a généré 20 000 images stego correspondantes.
+
+\subsection{28. Est-ce que toutes les 20 000 images ont été utilisées ?}
+
+Oui. Le dernier entraînement complet a utilisé les 20 000 images cover du dossier ALASKA. Avec les 20 000 images stego générées, cela donne 40 000 images au total avant split. La commande utilisée pour refaire ce type d'entraînement est :
+
+\begin{lstlisting}
+python run_pipeline.py --workers 15 --tune --force-stego --force-features
+\end{lstlisting}
+
+Le temps d'entraînement est plus long, mais les résultats sont plus représentatifs parce que tout le dossier disponible est utilisé.
+
+\subsection{29. Comment les images stego sont-elles générées ?}
+
+Chaque image cover est convertie en PNG propre après le même prétraitement, puis une copie reçoit un message caché par LSB. Cela donne une paire propre/stego comparable.
+
+\subsection{30. Pourquoi créer aussi des PNG propres ?}
+
+Pour éviter que le modèle apprenne une différence de format. Si les images propres étaient JPEG et les images stego PNG, le modèle pourrait apprendre le format au lieu de la stéganographie.
+
+\subsection{31. Comment éviter la fuite de données ?}
+
+Le split est groupé par image source. Une image propre et sa version stego restent dans le même groupe et ne sont pas séparées entre train et test. Ainsi, le modèle ne peut pas voir une image source en train et sa copie modifiée en test.
+
+\subsection{32. Quels sont les splits utilisés ?}
+
+Pour le dernier entraînement :
+
+\begin{itemize}
+\item Train : 28 000 images
+\item Validation : 6 000 images
+\item Test : 6 000 images
+\end{itemize}
+
+\subsection{33. Pourquoi avoir un jeu de validation ?}
+
+Le jeu de validation sert à choisir les seuils de décision des modèles sans toucher au jeu de test.
+
+\subsection{34. Pourquoi utiliser ALASKA ?}
+
+ALASKA fournit des images naturelles variées et standardisées. C'est mieux que des images synthétiques, car les textures naturelles rendent le problème plus réaliste.
+
+\subsection{35. Est-ce le vrai challenge ALASKA2 complet ?}
+
+Non. Le dossier local utilisé ici contient les images cover. Le vrai challenge ALASKA2 inclut aussi des stego générées par JMiPOD, J-UNIWARD et UERD. Ici, on génère nos propres stego LSB.
+
+\hrule
+
+\section{Questions sur les modèles}
+
+\subsection{36. Quels modèles sont utilisés ?}
+
+Deux modèles sont utilisés :
+
+\begin{itemize}
+\item SVM linéaire calibré ;
+\item Random Forest calibré.
+\end{itemize}
+
+\subsection{37. Pourquoi utiliser deux modèles ?}
+
+Pour comparer deux approches. Le SVM apprend une frontière de séparation dans l'espace des caractéristiques. Le Random Forest combine plusieurs arbres de décision. Si les deux sont d'accord, le verdict est plus fiable.
+
+\subsection{38. Pourquoi ne pas utiliser un CNN ?}
+
+Un CNN serait possible, mais ce projet est centré sur le traitement d'images classique : extraction de caractéristiques, filtres, texture, histogrammes, puis classification. C'est plus explicable pour un cours de traitement d'images.
+
+\subsection{39. Qu'est-ce qu'un SVM ?}
+
+Un SVM cherche une frontière qui sépare les classes dans l'espace des caractéristiques. Ici, il sépare les images propres des images stego.
+
+\subsection{40. Pourquoi un SVM linéaire ?}
+
+Parce que le vecteur de caractéristiques est déjà conçu pour rendre les classes séparables. Le SVM linéaire est rapide et interprétable.
+
+\subsection{41. Qu'est-ce qu'un Random Forest ?}
+
+C'est un ensemble d'arbres de décision. Chaque arbre vote, et la forêt donne une probabilité finale.
+
+\subsection{42. Pourquoi calibrer les modèles ?}
+
+La calibration rend les probabilités plus interprétables. Sans calibration, un score de 90 \% ne correspond pas forcément à une vraie probabilité.
+
+\subsection{43. Pourquoi utiliser des seuils ?}
+
+Un modèle produit une probabilité. Le seuil décide à partir de quelle probabilité on classe l'image comme stego. Le seuil est choisi sur le jeu de validation.
+
+\subsection{44. Quels sont les seuils actuels ?}
+
+Dans le dernier entraînement :
+
+\begin{itemize}
+\item SVM : 0.5000
+\item Random Forest : 0.7535
+\end{itemize}
+
+\subsection{45. Pourquoi le SVM et le Random Forest peuvent-ils être en désaccord ?}
+
+Ils n'apprennent pas la même frontière. Le SVM utilise une séparation linéaire, tandis que Random Forest utilise des règles par arbres. Sur des cas limites, ils peuvent donner des verdicts différents.
+
+\subsection{46. Que fait l'application en cas de désaccord ?}
+
+Elle affiche un verdict incertain. Elle ne force pas un résultat final. Elle montre les probabilités et seuils de chaque modèle.
+
+\subsection{47. Pourquoi le Random Forest est-il légèrement meilleur ?}
+
+Dans les résultats actuels, le Random Forest a une accuracy et un recall un peu plus élevés. Cela peut venir de sa capacité à capturer des relations non linéaires entre caractéristiques.
+
+\subsection{48. Est-ce que les modèles sont surentraînés ?}
+
+Le risque principal a été réduit : les images propres et stego utilisent le même format PNG, et les paires restent dans le même split. Les résultats sont élevés parce que le LSB est relativement détectable, mais ils ne doivent pas être interprétés comme une détection universelle de toute stéganographie.
+
+\subsection{49. Quels sont les résultats actuels ?}
+
+Sur le dernier test :
+
+\begin{itemize}
+\item SVM : accuracy 0.9983, AUC 0.9995
+\item Random Forest : accuracy 0.9983, AUC 0.9999
+\end{itemize}
+
+\subsection{50. Que signifie AUC ?}
+
+L'AUC mesure la capacité du modèle à classer les exemples positifs au-dessus des exemples négatifs, indépendamment d'un seuil fixe. Une AUC proche de 1 indique une très bonne séparation.
+
+\hrule
+
+\section{Questions sur les métriques}
+
+\subsection{51. Pourquoi l'accuracy est-elle élevée ?}
+
+Parce que la tâche actuelle est ciblée : détecter une insertion LSB générée par notre méthode. Le LSB modifie les statistiques des bits faibles de manière assez détectable.
+
+\subsection{52. Est-ce trop beau pour être vrai ?}
+
+Ce serait suspect si on prétendait détecter toutes les stéganographies. Mais pour le LSB généré par notre application, les résultats élevés sont plausibles, surtout après correction du dataset pour éviter le raccourci JPEG/PNG.
+
+\subsection{53. Qu'est-ce que la précision ?}
+
+La précision mesure parmi les images prédites stego, combien sont réellement stego.
+
+\subsection{54. Qu'est-ce que le recall ?}
+
+Le recall mesure parmi les vraies images stego, combien ont été détectées.
+
+\subsection{55. Pourquoi le recall est important ici ?}
+
+Parce qu'une erreur importante serait de manquer une image contenant un message caché.
+
+\subsection{56. Que signifie une fausse alerte ?}
+
+Une fausse alerte est une image propre classée comme stego.
+
+\subsection{57. Que signifie un faux négatif ?}
+
+Un faux négatif est une image stego classée comme propre. C'est souvent plus grave dans ce contexte.
+
+\subsection{58. Pourquoi afficher les matrices de confusion ?}
+
+Elles montrent concrètement le nombre de bonnes et mauvaises classifications pour chaque classe.
+
+\subsection{59. Pourquoi afficher les courbes ROC ?}
+
+Elles montrent le compromis entre taux de vrais positifs et taux de faux positifs selon le seuil.
+
+\subsection{60. Pourquoi ne pas se contenter de la métrique accuracy ?}
+
+Parce que l'accuracy seule peut être trompeuse. Il faut aussi regarder précision, recall, F1, AUC et matrice de confusion.
+
+\hrule
+
+\section{Questions sur l'application}
+
+\subsection{61. Que montre l'onglet Détection ?}
+
+Il montre l'image d'entrée, le verdict, les probabilités des deux modèles, les canaux RGB, les plans LSB, la carte LBP et les valeurs réelles calculées.
+
+\subsection{62. Pourquoi afficher les canaux RGB ?}
+
+Pour montrer la décomposition de l'image en matrices de couleur, ce qui est fondamental en traitement d'images.
+
+\subsection{63. Pourquoi afficher les plans LSB ?}
+
+Parce que le message est caché dans ces plans. C'est donc la visualisation la plus directe de la méthode.
+
+\subsection{64. Pourquoi afficher la carte LBP ?}
+
+Pour montrer un filtre de texture réellement utilisé dans la construction des caractéristiques.
+
+\subsection{65. Que montre l'onglet Création ?}
+
+Il montre l'image propre, l'image stego, la différence amplifiée, les bits du message, l'entête et les plans LSB après insertion.
+
+\subsection{66. Pourquoi afficher la différence amplifiée ?}
+
+Sans amplification, la différence est presque invisible. L'amplification rend visibles les positions modifiées.
+
+\subsection{67. Pourquoi afficher message vers bits ?}
+
+Parce que le LSB cache des bits, pas directement des lettres. Le message est d'abord encodé en UTF-8, puis transformé en bits.
+
+\subsection{68. Que montre l'onglet Extraction ?}
+
+Il montre l'image, les plans LSB lus, les 32 bits de l'en-tête, la longueur décodée, la validité et le texte extrait.
+
+\subsection{69. Pourquoi limiter la taille des aperçus ?}
+
+Pour que l'interface reste lisible pendant une démonstration de 5 minutes. Les grandes images rendent difficile la comparaison visuelle des étapes.
+
+\subsection{70. Pourquoi ne plus faire d'auto-test dans création et extraction ?}
+
+Pour garder chaque service clair :
+
+\begin{itemize}
+\item création : générer propre/stego et visualiser l'insertion ;
+\item détection : classer une image ;
+\item extraction : lire un message.
+\end{itemize}
+
+\hrule
+
+\section{Questions critiques possibles}
+
+\subsection{71. Est-ce que ce système détecte J-UNIWARD ?}
+
+Non. Il est entraîné sur notre LSB. Pour détecter J-UNIWARD, il faudrait entraîner avec des images J-UNIWARD et probablement adapter les caractéristiques.
+
+\subsection{72. Est-ce que ce système détecte JMiPOD ?}
+
+Non, pas de manière garantie. JMiPOD est une méthode plus avancée que le LSB simple.
+
+\subsection{73. Est-ce que ce système détecte UERD ?}
+
+Non, sauf hasard. Il faudrait ajouter des exemples UERD au dataset d'entraînement.
+
+\subsection{74. Pourquoi ne pas dire simplement que c'est un détecteur LSB ?}
+
+C'est exactement la bonne formulation. Le projet est un détecteur de stéganographie LSB, pas un détecteur universel de toute stéganographie.
+
+\subsection{75. Que se passe-t-il si le message est très court ?}
+
+Le dernier entraînement inclut aussi des messages très courts, comme un ou deux caractères. Les deux modèles ont été testés sur ces cas.
+
+\subsection{76. Que se passe-t-il si le message est très long ?}
+
+Plus le message est long, plus il modifie les bits LSB, donc il devient généralement plus facile à détecter. Mais il ne faut pas dépasser la capacité de l'image.
+
+\subsection{77. Que se passe-t-il si on modifie l'image après insertion ?}
+
+Des opérations comme redimensionnement, compression JPEG ou filtrage peuvent détruire le message. C'est pourquoi l'image stego doit rester en PNG.
+
+\subsection{78. Pourquoi utiliser une image de contrôle propre ?}
+
+Elle permet de vérifier que le modèle ne classe pas automatiquement toute image préparée comme stego. C'est essentiel pour une démonstration correcte.
+
+\subsection{79. Quelle était l'erreur importante corrigée pendant le projet ?}
+
+Au départ, il y avait un risque que le modèle apprenne la différence entre JPEG et PNG. On a corrigé cela en générant aussi des images propres PNG avec le même prétraitement que les images stego.
+
+\subsection{80. Quelle est la contribution principale du projet ?}
+
+La contribution est de relier une technique de dissimulation LSB à un pipeline complet de traitement d'images : visualisation des plans de bits, extraction de caractéristiques, apprentissage automatique, détection et extraction.
+
+\subsection{81. Comment améliorer ce projet ?}
+
+On pourrait :
+
+\begin{itemize}
+\item ajouter des méthodes stego modernes ;
+\item entraîner un CNN ;
+\item ajouter du chiffrement du message ;
+\item tester sur plus d'images ;
+\item mesurer la robustesse après compression ou bruit ;
+\item comparer plusieurs tailles de payload.
+\end{itemize}
+
+\subsection{82. Pourquoi ne pas utiliser uniquement l'extraction pour détecter ?}
+
+L'extraction marche seulement pour les images générées par notre application avec notre format d'en-tête. La détection ML est plus générale pour reconnaître des traces LSB, même si elle reste spécialisée.
+
+\subsection{83. Pourquoi afficher les deux modèles au lieu d'un seul ?}
+
+Parce que cela rend la décision plus transparente. Un accord entre deux modèles différents donne plus de confiance. Un désaccord signale un cas limite.
+
+\subsection{84. Quel modèle choisir en pratique ?}
+
+Dans les résultats actuels, Random Forest est légèrement meilleur en accuracy et recall. Mais l'application affiche les deux pour garder une décision explicable.
+
+\subsection{85. Pourquoi le traitement d'images est-il nécessaire avant le ML ?}
+
+Le ML ne reçoit pas directement une explication visuelle. Le traitement d'images transforme l'image en mesures pertinentes : plans LSB, texture, histogrammes et statistiques.
+
+\subsection{86. Est-ce que les caractéristiques sont interprétables ?}
+
+Oui, beaucoup plus qu'un CNN brut. On peut expliquer le rôle des ratios LSB, des histogrammes, de LBP et de GLCM.
+
+\subsection{87. Est-ce que l'image stego est toujours visuellement identique ?}
+
+Elle est très proche, mais pas mathématiquement identique. La différence amplifiée montre les valeurs modifiées.
+
+\subsection{88. Pourquoi le PSNR est-il affiché ?}
+
+Le PSNR mesure la différence entre l'image propre et l'image stego. Un PSNR élevé indique une faible distorsion visuelle.
+
+\subsection{89. Qu'est-ce qu'un bon PSNR ?}
+
+En général, au-dessus de 40 dB, la différence est difficile à percevoir. Dans nos tests LSB, le PSNR est souvent bien supérieur.
+
+\subsection{90. Pourquoi le LSB change seulement certaines valeurs RGB ?}
+
+Si le bit à écrire est déjà égal au LSB actuel, la valeur ne change pas. Sinon, elle change de 1.
+
+\subsection{91. Le message peut-il être extrait sans connaître la longueur ?}
+
+Pas proprement. C'est pourquoi on écrit une longueur sur 32 bits au début.
+
+\subsection{92. Pourquoi utiliser UTF-8 ?}
+
+UTF-8 permet de gérer les caractères français et d'autres langues. Le message est converti en octets UTF-8 avant d'être transformé en bits.
+
+\subsection{93. Est-ce que les accents dans le message sont supportés ?}
+
+Oui. L'insertion et l'extraction utilisent UTF-8, donc les accents comme é, è, à sont supportés.
+
+\subsection{94. Que se passe-t-il si l'image est trop petite ?}
+
+La capacité peut être insuffisante. Le programme vérifie si le message dépasse la capacité disponible.
+
+\subsection{95. Pourquoi l'application redimensionne à 512 x 512 ?}
+
+Parce que le modèle a été entraîné sur cette taille. Cela garde une cohérence entre entraînement et utilisation.
+
+\subsection{96. Est-ce qu'on pourrait entraîner sur plusieurs tailles ?}
+
+Oui, mais il faudrait adapter le pipeline ou choisir des caractéristiques indépendantes de la taille.
+
+\subsection{97. Pourquoi les images ALASKA sont intéressantes ?}
+
+Elles sont naturelles, variées et standardisées. Elles donnent un meilleur support expérimental que des images artificielles.
+
+\subsection{98. Quelle est la limite principale du projet ?}
+
+La spécialisation au LSB. Le projet est solide pour expliquer et détecter LSB, mais pas pour toutes les méthodes de stéganographie.
+
+\subsection{99. Si le professeur demande "est-ce vraiment du traitement d'images ?", que répondre ?}
+
+Oui, parce que la décision repose sur des transformations et mesures d'image : canaux, plans de bits, histogrammes, LBP, GLCM, différence amplifiée, PSNR et statistiques.
+
+\subsection{100. Résumé en une phrase ?}
+
+Le projet montre comment une modification invisible des bits faibles peut être rendue visible, mesurable et détectable grâce au traitement d'images et à deux modèles de classification.
+\end{document}
