@@ -62,6 +62,15 @@ st.markdown(
         margin-top: 1.1rem;
         margin-bottom: 0.35rem;
     }
+    .step-card {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 0.75rem 0.9rem;
+        background: #ffffff;
+        margin-bottom: 0.6rem;
+    }
+    .step-card strong { color: #111827; }
+    .step-card span { color: #4b5563; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -161,6 +170,47 @@ def lsb_plane_image(arr: np.ndarray, channel: int) -> Image.Image:
     return Image.fromarray(((arr[:, :, channel] & 1) * 255).astype(np.uint8))
 
 
+def histogram_image(arr: np.ndarray, channel: int, color: str) -> Image.Image:
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig, ax = plt.subplots(figsize=(3.0, 1.8), dpi=120)
+    ax.hist(arr[:, :, channel].ravel(), bins=64, range=(0, 255), color=color, alpha=0.85)
+    ax.set_xlim(0, 255)
+    ax.set_yticks([])
+    ax.set_xlabel("Intensité")
+    ax.grid(alpha=0.2)
+    fig.tight_layout(pad=0.3)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png", bbox_inches="tight")
+    plt.close(fig)
+    buf.seek(0)
+    return Image.open(buf).convert("RGB")
+
+
+def bit_preview(message: str, max_bits: int = 96) -> tuple[str, str, int]:
+    payload = (message + LSBSteganography.END_MARKER).encode("utf-8")
+    payload_bits = np.unpackbits(np.frombuffer(payload, dtype=np.uint8))
+    header = f"{payload_bits.size:032b}"
+    bit_string = "".join(str(int(b)) for b in payload_bits[:max_bits])
+    if payload_bits.size > max_bits:
+        bit_string += "..."
+    byte_preview = " ".join(f"{b:02X}" for b in payload[:24])
+    if len(payload) > 24:
+        byte_preview += " ..."
+    return header, bit_string, len(payload_bits)
+
+
+def metric_card(title: str, value: str, note: str = "") -> None:
+    st.markdown(
+        f"<div class='step-card'><strong>{title}</strong><br>"
+        f"<span>{value}</span><br><span>{note}</span></div>",
+        unsafe_allow_html=True,
+    )
+
+
 def lbp_visual(arr: np.ndarray) -> Image.Image:
     green = arr[:, :, 1]
     lbp = local_binary_pattern(green, 8, 1, method="uniform")
@@ -233,35 +283,46 @@ def render_verdict(final_label: int | None, bundle: dict) -> None:
 
 def render_detection_steps(image: Image.Image, base_rows: list[dict], bundle: dict, elapsed_ms: float) -> None:
     features, rows, arr = feature_rows(image)
-    model_rows = [
-        {"Mesure": "Temps total SVM + RF", "Valeur": f"{elapsed_ms:.1f} ms"},
-        {"Mesure": "Verdict SVM", "Valeur": "stego" if bundle["svm"]["label"] == 1 else "propre"},
-        {"Mesure": "Verdict Random Forest", "Valeur": "stego" if bundle["rf"]["label"] == 1 else "propre"},
-        {"Mesure": "Accord des mod\u00e8les", "Valeur": "oui" if bundle["agreement"] else "non"},
-    ]
+    ratios = [(arr[:, :, c] & 1).mean() for c in range(3)]
+    header = decode_lsb_header(arr)
 
     st.markdown("<div class='step-title'>1. Image pr\u00e9par\u00e9e pour l'analyse</div>", unsafe_allow_html=True)
     p1, p2, p3 = st.columns([1, 1, 1])
     p1.image(image, caption=f"Image re\u00e7ue : {image.width} x {image.height}", width=260)
     p2.image(Image.fromarray(arr), caption=f"Image analys\u00e9e : {TARGET_SIZE} x {TARGET_SIZE}", width=260)
-    p3.dataframe(base_rows + rows[:5], hide_index=True, use_container_width=True)
+    with p3:
+        metric_card("Fichier", base_rows[0]["Valeur"], f"{base_rows[1]['Valeur']} - format {base_rows[2]['Valeur']}")
+        metric_card("Prétraitement réel", f"{base_rows[3]['Valeur']} → {TARGET_SIZE} x {TARGET_SIZE}", "Conversion RGB puis redimensionnement Lanczos.")
+        metric_card("Données analysées", f"{TARGET_SIZE * TARGET_SIZE:,} pixels", f"{TARGET_SIZE * TARGET_SIZE * 3:,} valeurs RGB.")
 
     st.markdown("<div class='step-title'>2. S\u00e9paration en canaux couleur</div>", unsafe_allow_html=True)
     r_col, g_col, b_col = st.columns(3)
-    r_col.image(channel_image(arr, 0), caption="Canal rouge R", width=220)
-    g_col.image(channel_image(arr, 1), caption="Canal vert G", width=220)
-    b_col.image(channel_image(arr, 2), caption="Canal bleu B", width=220)
+    for col, idx, name, color in [
+        (r_col, 0, "Rouge R", "#dc2626"),
+        (g_col, 1, "Vert G", "#16a34a"),
+        (b_col, 2, "Bleu B", "#2563eb"),
+    ]:
+        col.image(channel_image(arr, idx), caption=f"Canal {name}", width=220)
+        col.image(histogram_image(arr, idx, color), caption=f"Histogramme {name}", width=220)
+        col.caption(f"Moyenne={arr[:, :, idx].mean():.2f} | Écart-type={arr[:, :, idx].std():.2f}")
 
     st.markdown("<div class='step-title'>3. Plans LSB extraits des trois canaux</div>", unsafe_allow_html=True)
     lr, lg, lb = st.columns(3)
-    lr.image(lsb_plane_image(arr, 0), caption="LSB du canal R", width=220)
-    lg.image(lsb_plane_image(arr, 1), caption="LSB du canal G", width=220)
-    lb.image(lsb_plane_image(arr, 2), caption="LSB du canal B", width=220)
+    for col, idx, name, ratio in [(lr, 0, "R", ratios[0]), (lg, 1, "G", ratios[1]), (lb, 2, "B", ratios[2])]:
+        col.image(lsb_plane_image(arr, idx), caption=f"Plan LSB {name}", width=220)
+        col.metric(f"Ratio de 1 LSB {name}", f"{ratio:.4f}")
+        col.caption("Valeur proche de 0.5 : bits faibles statistiquement plus aléatoires.")
 
     st.markdown("<div class='step-title'>4. Filtre de texture utilis\u00e9 dans les features</div>", unsafe_allow_html=True)
-    f1, f2 = st.columns([1, 1.4])
+    f1, f2, f3 = st.columns([1, 1, 1])
     f1.image(lbp_visual(arr), caption="Carte LBP calcul\u00e9e sur le canal vert", width=260)
-    f2.dataframe(rows[5:] + model_rows, hide_index=True, use_container_width=True)
+    with f2:
+        metric_card("Features extraites", f"{features.size} valeurs", "LSB, LBP, GLCM, histogrammes RGB et moments statistiques.")
+        metric_card("Entête LSB décodée", f"{header['payload_bits']:,} bits annoncés", "Valide dans la capacité : " + ("oui" if header["valid"] else "non"))
+    with f3:
+        metric_card("SVM", f"P(stego) = {bundle['svm']['stego_probability'] * 100:.2f}%", f"Seuil = {bundle['svm'].get('svm_threshold', 0.5) * 100:.2f}%")
+        metric_card("Random Forest", f"P(stego) = {bundle['rf']['stego_probability'] * 100:.2f}%", f"Seuil = {bundle['rf'].get('rf_threshold', 0.5) * 100:.2f}%")
+        metric_card("Accord", "oui" if bundle["agreement"] else "non", f"Temps total = {elapsed_ms:.1f} ms")
 
 
 def embedding_rows(clean_img: Image.Image, stego_img: Image.Image, message: str, psnr: float) -> tuple[list[dict], Image.Image]:
@@ -284,6 +345,50 @@ def embedding_rows(clean_img: Image.Image, stego_img: Image.Image, message: str,
     return rows, diff_img
 
 
+def render_embedding_steps(clean_img: Image.Image, stego_img: Image.Image, message: str, psnr: float) -> None:
+    rows, diff_img = embedding_rows(clean_img, stego_img, message, psnr)
+    header_bits, payload_preview, payload_len = bit_preview(message)
+    values = {row["Mesure"]: row["Valeur"] for row in rows}
+
+    st.markdown("<div class='step-title'>1. Comparaison visuelle avant / après</div>", unsafe_allow_html=True)
+    c1, c2, c3 = st.columns(3)
+    c1.image(clean_img, caption="PNG propre", width=250)
+    c1.download_button("Télécharger le PNG propre", data=to_png_bytes(clean_img), file_name="controle_propre.png", mime="image/png")
+    c2.image(stego_img, caption="PNG stego", width=250)
+    c2.download_button("Télécharger le PNG stego", data=to_png_bytes(stego_img), file_name="image_stego.png", mime="image/png")
+    c3.image(diff_img, caption="Différence amplifiée x255", width=250)
+    c3.caption("Les pixels noirs n'ont pas changé. Les pixels visibles indiquent une variation de 1 sur une valeur RGB.")
+
+    st.markdown("<div class='step-title'>2. Message transformé en bits</div>", unsafe_allow_html=True)
+    b1, b2, b3 = st.columns(3)
+    with b1:
+        metric_card("Message utilisateur", values["Message utilisateur"], f"Texte original : {message[:80]}")
+        metric_card("Payload UTF-8", f"{payload_len:,} bits", values["Payload UTF-8 + marqueur"])
+    with b2:
+        metric_card("Entête 32 bits", header_bits, "Cette valeur encode la longueur du payload.")
+    with b3:
+        metric_card("Premiers bits du payload", payload_preview, "Aperçu limité pour garder l'interface lisible.")
+
+    st.markdown("<div class='step-title'>3. Insertion dans les bits de poids faible</div>", unsafe_allow_html=True)
+    m1, m2, m3 = st.columns(3)
+    with m1:
+        metric_card("Capacité LSB", values["Capacité LSB totale"], values["Occupation"])
+        metric_card("Bits écrits", values["Bits écrits"], "Entête + payload UTF-8 + marqueur de fin.")
+    with m2:
+        metric_card("Valeurs RGB modifiées", values["Valeurs RGB modifiées"], "Seules les valeurs dont le LSB devait changer sont modifiées.")
+        metric_card("Pixels touchés", values["Pixels touchés"], "Un pixel peut contenir 0 à 3 valeurs RGB modifiées.")
+    with m3:
+        metric_card("PSNR", values["PSNR"], "Plus la valeur est élevée, plus la différence visuelle est faible.")
+
+    st.markdown("<div class='step-title'>4. Plans LSB après insertion</div>", unsafe_allow_html=True)
+    arr_stego = np.asarray(stego_img, dtype=np.uint8)
+    l1, l2, l3 = st.columns(3)
+    for col, idx, name in [(l1, 0, "rouge"), (l2, 1, "vert"), (l3, 2, "bleu")]:
+        plane = arr_stego[:, :, idx] & 1
+        col.image(lsb_plane_image(arr_stego, idx), caption=f"Plan LSB {name}", width=220)
+        col.caption(f"Ratio de 1 = {plane.mean():.4f}")
+
+
 def extraction_rows(image: Image.Image, text: str, elapsed_ms: float) -> list[dict]:
     arr = np.asarray(image.convert("RGB"), dtype=np.uint8)
     header = decode_lsb_header(arr)
@@ -296,6 +401,32 @@ def extraction_rows(image: Image.Image, text: str, elapsed_ms: float) -> list[di
         {"Mesure": "Texte extrait", "Valeur": f"{len(text)} caract\u00e8res"},
         {"Mesure": "Temps d'extraction", "Valeur": f"{elapsed_ms:.1f} ms"},
     ]
+
+
+def render_extraction_steps(image: Image.Image, text: str, elapsed_ms: float) -> None:
+    arr = np.asarray(image.convert("RGB"), dtype=np.uint8)
+    rows = extraction_rows(image, text, elapsed_ms)
+    values = {row["Mesure"]: row["Valeur"] for row in rows}
+    header = decode_lsb_header(arr)
+    first_header_bits = "".join(str(int(bit)) for bit in (arr.reshape(-1) & 1)[:32])
+
+    st.markdown("<div class='step-title'>1. Lecture des plans LSB</div>", unsafe_allow_html=True)
+    e1, e2, e3 = st.columns(3)
+    for col, idx, name in [(e1, 0, "rouge"), (e2, 1, "vert"), (e3, 2, "bleu")]:
+        plane = arr[:, :, idx] & 1
+        col.image(lsb_plane_image(arr, idx), caption=f"LSB {name} lu", width=220)
+        col.caption(f"Ratio de 1 = {plane.mean():.4f}")
+
+    st.markdown("<div class='step-title'>2. Décodage de l'entête et du payload</div>", unsafe_allow_html=True)
+    h1, h2, h3 = st.columns(3)
+    with h1:
+        metric_card("32 premiers bits lus", first_header_bits, "Ils représentent la longueur du message caché.")
+    with h2:
+        metric_card("Longueur annoncée", values["Longueur annoncée par l'entête"], "Valide : " + values["Longueur valide"])
+        metric_card("Capacité LSB", values["Capacité LSB"], f"Payload utile max : {header.get('payload_capacity_bits', 0):,} bits")
+    with h3:
+        metric_card("Marqueur de fin", values["Marqueur de fin trouvé"], "Le texte est accepté seulement si le marqueur est présent.")
+        metric_card("Temps d'extraction", values["Temps d'extraction"], values["Texte extrait"])
 
 
 def render_metrics(metrics: dict) -> None:
@@ -413,7 +544,10 @@ with tab_create:
         ]
         c_prev, c_data = st.columns([1, 1.3])
         c_prev.image(prep, caption="Aper\u00e7u pr\u00e9par\u00e9", width=320)
-        c_data.dataframe(rows, hide_index=True, use_container_width=True)
+        with c_data:
+            metric_card("Source", rows[0]["Valeur"], f"Format : {rows[1]['Valeur']}")
+            metric_card("Préparation", f"{rows[2]['Valeur']} → {rows[3]['Valeur']}", "Même prétraitement que l'entraînement.")
+            metric_card("Capacité utile", rows[4]["Valeur"], "Après les 32 bits d'entête.")
 
     if st.button("G\u00e9n\u00e9rer les deux images", type="primary", disabled=source is None or not message):
         prep = prepared_image(source)
@@ -427,27 +561,7 @@ with tab_create:
             psnr = lsb.embed(str(clean_path), message, str(stego_path))
             clean_img = Image.open(clean_path).convert("RGB")
             stego_img = Image.open(stego_path).convert("RGB")
-            rows, diff_img = embedding_rows(clean_img, stego_img, message, psnr)
-
-            st.markdown("<div class='step-title'>1. Sorties g\u00e9n\u00e9r\u00e9es</div>", unsafe_allow_html=True)
-            c1, c2, c3 = st.columns(3)
-            c1.image(clean_img, caption="PNG propre", width=260)
-            c2.image(stego_img, caption="PNG stego", width=260)
-            c3.image(diff_img, caption="Diff\u00e9rence amplifi\u00e9e x255", width=260)
-
-            d1, d2 = st.columns(2)
-            d1.download_button("T\u00e9l\u00e9charger le PNG propre", data=to_png_bytes(clean_img), file_name="controle_propre.png", mime="image/png")
-            d2.download_button("T\u00e9l\u00e9charger le PNG stego", data=to_png_bytes(stego_img), file_name="image_stego.png", mime="image/png")
-
-            st.markdown("<div class='step-title'>2. Mesures r\u00e9elles de l'insertion</div>", unsafe_allow_html=True)
-            st.dataframe(rows, hide_index=True, use_container_width=True)
-
-            st.markdown("<div class='step-title'>3. Plans LSB apr\u00e8s insertion</div>", unsafe_allow_html=True)
-            arr_stego = np.asarray(stego_img, dtype=np.uint8)
-            l1, l2, l3 = st.columns(3)
-            l1.image(lsb_plane_image(arr_stego, 0), caption="LSB rouge de l'image stego", width=220)
-            l2.image(lsb_plane_image(arr_stego, 1), caption="LSB vert de l'image stego", width=220)
-            l3.image(lsb_plane_image(arr_stego, 2), caption="LSB bleu de l'image stego", width=220)
+            render_embedding_steps(clean_img, stego_img, message, psnr)
         except ValueError as exc:
             st.error(str(exc))
         finally:
@@ -474,15 +588,7 @@ with tab_extract:
             elapsed = (time.time() - start) * 1000
             tmp.unlink(missing_ok=True)
 
-        st.markdown("<div class='step-title'>1. Plans LSB lus pendant l'extraction</div>", unsafe_allow_html=True)
-        arr = np.asarray(image, dtype=np.uint8)
-        e1, e2, e3 = st.columns(3)
-        e1.image(lsb_plane_image(arr, 0), caption="LSB rouge lu", width=220)
-        e2.image(lsb_plane_image(arr, 1), caption="LSB vert lu", width=220)
-        e3.image(lsb_plane_image(arr, 2), caption="LSB bleu lu", width=220)
-
-        st.markdown("<div class='step-title'>2. Donn\u00e9es r\u00e9elles de l'extraction</div>", unsafe_allow_html=True)
-        st.dataframe(extraction_rows(image, text, elapsed), hide_index=True, use_container_width=True)
+        render_extraction_steps(image, text, elapsed)
         if text:
             st.success("Message trouv\u00e9")
             st.text_area("Texte extrait", value=text, height=200)

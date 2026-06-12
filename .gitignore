@@ -27,7 +27,6 @@ ENV/
 
 # Generated data, model outputs, and experiment artifacts
 data/
-models/
 results/
 ALASKA_v2_JPG_512_QF95_COLOR/
 
