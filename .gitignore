@@ -1,0 +1,38 @@
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Local environment and secrets
+.env
+.env.*
+.streamlit/secrets.toml
+
+# Logs
+*.log
+
+# Generated data, model outputs, and experiment artifacts
+data/
+models/
+results/
+ALASKA_v2_JPG_512_QF95_COLOR/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
