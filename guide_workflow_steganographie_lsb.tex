@@ -83,23 +83,27 @@ Dans un canal RGB, changer le LSB change une valeur de 0 ou 1. Sur une échelle 
 
 Mais discret ne veut pas dire indétectable. Si on modifie beaucoup de LSB pour écrire un message, on change la distribution statistique de cette couche. Le cours de traitement d'images intervient ici : on ne regarde plus seulement l'image RGB normale, on regarde des représentations transformées.
 
+La figure suivante utilise l'image de démonstration préparée dans \texttt{presentation\_assets\_2}. La première ligne montre les trois composantes RGB séparées. Pour obtenir le canal rouge, on garde seulement les valeurs rouges et on met les autres composantes à zéro. On fait la même chose pour le vert et le bleu. Cette opération montre que chaque canal contient une partie différente de l'information visuelle.
+
+La deuxième ligne montre les plans LSB. Ici, on ne garde plus l'intensité complète du canal : on garde seulement le dernier bit de chaque valeur. Un pixel noir représente un LSB égal à 0, et un pixel blanc représente un LSB égal à 1. C'est pour cela que ces images ressemblent à du bruit. Pourtant, c'est exactement cette couche qui est utilisée pour cacher le texte.
+
 \begin{figure}[h]
 \centering
 \begin{minipage}{0.31\linewidth}
 \centering
-\includegraphics[width=\linewidth]{presentation_assets/canal_rouge.png}
+\includegraphics[width=\linewidth]{presentation_assets_2/test_canal_rouge.png}
 \small Canal rouge
 \end{minipage}
 \hfill
 \begin{minipage}{0.31\linewidth}
 \centering
-\includegraphics[width=\linewidth]{presentation_assets/canal_vert.png}
+\includegraphics[width=\linewidth]{presentation_assets_2/test_canal_vert.png}
 \small Canal vert
 \end{minipage}
 \hfill
 \begin{minipage}{0.31\linewidth}
 \centering
-\includegraphics[width=\linewidth]{presentation_assets/canal_bleu.png}
+\includegraphics[width=\linewidth]{presentation_assets_2/test_canal_bleu.png}
 \small Canal bleu
 \end{minipage}
 
@@ -107,23 +111,25 @@ Mais discret ne veut pas dire indétectable. Si on modifie beaucoup de LSB pour 
 
 \begin{minipage}{0.31\linewidth}
 \centering
-\includegraphics[width=\linewidth]{presentation_assets/lsb_rouge.png}
+\includegraphics[width=\linewidth]{presentation_assets_2/test_lsb_rouge.png}
 \small Plan LSB rouge
 \end{minipage}
 \hfill
 \begin{minipage}{0.31\linewidth}
 \centering
-\includegraphics[width=\linewidth]{presentation_assets/lsb_vert.png}
+\includegraphics[width=\linewidth]{presentation_assets_2/test_lsb_vert.png}
 \small Plan LSB vert
 \end{minipage}
 \hfill
 \begin{minipage}{0.31\linewidth}
 \centering
-\includegraphics[width=\linewidth]{presentation_assets/lsb_bleu.png}
+\includegraphics[width=\linewidth]{presentation_assets_2/test_lsb_bleu.png}
 \small Plan LSB bleu
 \end{minipage}
-\caption{Décomposition réelle de l'image utilisée pour la démonstration : canaux RGB puis plans LSB. Les plans LSB ressemblent à du bruit, mais c'est précisément la couche manipulée par l'insertion.}
+\caption{Décomposition réelle de l'image utilisée pour la démonstration : canaux RGB puis plans LSB. Les canaux conservent une structure visuelle, alors que les plans LSB montrent seulement les bits faibles.}
 \end{figure}
+
+Cette figure est importante pour l'explication : elle montre que notre projet ne traite pas l'image comme un fichier abstrait. On travaille sur les matrices de pixels, on sépare les canaux, puis on isole une couche binaire. Le message caché n'est donc pas placé dans une zone visible de l'image, mais dans une représentation binaire très fine.
 
 \section{Algorithme d'insertion LSB}
 Notre classe \texttt{LSBSteganography} lit l'image en RGB, transforme le message en UTF-8, ajoute un marqueur de fin, puis écrit les bits dans les valeurs RGB aplaties.
@@ -157,27 +163,31 @@ Le marqueur \texttt{<<<END>>>} sert de deuxième contrôle. L'en-tête dit combi
 \subsection*{Pourquoi mesurer le PSNR}
 Le PSNR mesure la différence entre l'image propre et l'image stego. Plus il est haut, plus la différence est faible. Dans ce projet, le PSNR sert à relier l'insertion LSB à une mesure classique de traitement d'images : nous montrons que la modification est faible non seulement visuellement, mais aussi numériquement.
 
+La figure suivante montre le résultat de l'insertion d'un message long de 20 000 caractères. C'est volontairement plus parlant qu'un message très court : la différence amplifiée devient visible et permet de comprendre où l'algorithme a modifié les valeurs RGB. Malgré cela, l'image stego reste très proche de l'image propre dans l'affichage normal.
+
 \begin{figure}[h]
 \centering
 \begin{minipage}{0.31\linewidth}
 \centering
-\includegraphics[width=\linewidth]{presentation_assets/demo_clean.png}
+\includegraphics[width=\linewidth]{presentation_assets_2/test_clean.png}
 \small Image propre
 \end{minipage}
 \hfill
 \begin{minipage}{0.31\linewidth}
 \centering
-\includegraphics[width=\linewidth]{presentation_assets/demo_stego.png}
+\includegraphics[width=\linewidth]{presentation_assets_2/test_stego_20000.png}
 \small Image stego
 \end{minipage}
 \hfill
 \begin{minipage}{0.31\linewidth}
 \centering
-\includegraphics[width=\linewidth]{presentation_assets/difference_amplifiee.png}
+\includegraphics[width=\linewidth]{presentation_assets_2/test_difference_amplifiee.png}
 \small Différence amplifiée
 \end{minipage}
-\caption{Comparaison de l'image propre, de l'image contenant le texte caché et de la différence amplifiée. Les deux premières images sont presque identiques à l'oeil, tandis que l'amplification révèle les valeurs RGB modifiées.}
+\caption{Comparaison de l'image propre, de l'image contenant 20 000 caractères cachés et de la différence amplifiée. Dans cet exemple, 80 180 valeurs RGB changent, réparties sur 46 755 pixels.}
 \end{figure}
+
+La différence amplifiée ne représente pas une image naturelle. Elle sert uniquement d'outil pédagogique : on multiplie visuellement les petites différences pour les rendre observables. Sans amplification, une variation de 1 sur une valeur RGB entre 0 et 255 est généralement trop faible pour être vue directement.
 
 \section{Algorithme d'extraction}
 L'extraction fait l'opération inverse :
@@ -245,10 +255,24 @@ Cette partie est très importante parce qu'elle montre qu'on ne se contente pas 
 \section{Visualisations dans l'application}
 L'application ne montre pas seulement une réponse. Elle affiche des étapes visuelles réelles calculées sur l'image courante.
 
+\subsection*{Comment lire les visualisations}
+Chaque visualisation correspond à une opération précise de traitement d'images :
+\begin{itemize}
+  \item l'image RGB montre l'entrée telle qu'elle est perçue normalement ;
+  \item les canaux rouge, vert et bleu montrent la séparation des composantes ;
+  \item les plans LSB montrent la couche binaire où le texte est caché ;
+  \item la différence amplifiée montre les positions où les valeurs ont changé ;
+  \item la carte LBP résume les motifs locaux de texture ;
+  \item les histogrammes montrent la distribution des intensités ;
+  \item les métriques SVM/RF montrent comment les features deviennent une décision.
+\end{itemize}
+
+Ces éléments doivent être lus dans l'ordre. On commence par l'image visible, puis on descend vers les représentations numériques moins visibles, puis on termine par les features et la classification.
+
 \begin{figure}[h]
 \centering
 \includegraphics[width=0.88\linewidth]{presentation_assets_2/test_difference_amplifiee.png}
-\caption{Exemple visuel généré pendant les tests : différence amplifiée après insertion LSB. Cette image aide à expliquer que la modification est spatialement localisée dans les pixels, même si elle reste très faible dans l'image normale.}
+\caption{Différence amplifiée après insertion LSB. Les zones claires indiquent les endroits où au moins une valeur RGB a changé. Cette image aide à relier l'algorithme binaire à une observation spatiale dans l'image.}
 \end{figure}
 
 \subsection{Détection}
@@ -311,6 +335,19 @@ On aurait pu donner tous les pixels à un réseau de neurones, mais ce serait pl
   \item les histogrammes expliquent la distribution des couleurs ;
   \item les moments résument la forme statistique de chaque canal.
 \end{itemize}
+
+Le rôle des figures précédentes est donc double. Elles montrent d'abord ce que voit un humain : l'image propre et l'image stego sont proches. Ensuite, elles montrent ce que mesure le programme : plans de bits, changements de pixels et textures. Le modèle ne reçoit pas les images affichées dans le guide ; il reçoit les valeurs numériques extraites à partir de ces représentations.
+
+\subsection*{Lien entre les images du guide et les 218 features}
+Les images du guide servent à comprendre d'où viennent les features :
+\begin{itemize}
+  \item les plans LSB produisent des ratios de 0 et de 1, une variance, une autocorrélation et des mesures pair/impair ;
+  \item les canaux RGB produisent des histogrammes et des moments statistiques ;
+  \item la version en niveaux de gris et le canal vert servent aux mesures GLCM ;
+  \item les voisinages locaux des pixels servent à calculer LBP.
+\end{itemize}
+
+Autrement dit, chaque figure correspond à une étape concrète du calcul. Le guide ne montre pas des illustrations décoratives : il montre les mêmes familles d'information que celles utilisées par le détecteur.
 
 \subsection*{Comment expliquer LBP simplement}
 LBP compare un pixel avec ses voisins. Pour chaque voisin, on note s'il est plus grand ou plus petit que le pixel central. Cela produit un petit code binaire qui décrit la texture locale. Ensuite, on fait un histogramme de ces codes. C'est utile parce que la stéganographie peut modifier de petites structures locales.
@@ -398,6 +435,19 @@ Le test est utilisé une seule fois pour mesurer la performance finale. Les matr
 
 \section{Trajet complet d'une image}
 Cette section explique le projet comme une histoire complète, depuis l'image chargée jusqu'au verdict ou au texte extrait.
+
+\subsection*{Image de démonstration utilisée}
+Dans les figures du guide, l'image propre est \texttt{presentation\_assets\_2/test\_clean.png}. L'image stego correspondante est \texttt{presentation\_assets\_2/test\_stego\_20000.png}. Elle contient un texte extrait de 20 000 caractères. Cette paire est utile pour l'explication parce qu'elle montre clairement le principe sans sortir du fonctionnement réel de l'application.
+
+Les valeurs mesurées pour cette paire sont :
+\begin{itemize}
+  \item message extrait : 20 000 caractères ;
+  \item valeurs RGB modifiées : 80 180 ;
+  \item pixels touchés : 46 755 ;
+  \item taille de l'image : 512 x 512 pixels, donc 262 144 pixels.
+\end{itemize}
+
+Ces nombres montrent que l'insertion ne modifie pas toute l'image. Elle modifie seulement les valeurs nécessaires pour aligner les LSB avec les bits du message.
 
 \subsection*{Cas 1 : l'utilisateur cache un texte}
 \begin{enumerate}
@@ -546,16 +596,16 @@ L'utilisateur peut choisir de cacher un texte ou de ne rien cacher. L'option san
 \subsection{Onglet Extraire}
 L'utilisateur charge un PNG. L'application lit l'en-tête et le payload. Elle affiche les plans LSB lus, la longueur annoncée, la validité et le texte extrait.
 
-\section{Erreurs courantes et solutions}
+\section{Points de vigilance liés au système}
 \begin{longtable}{p{5cm}p{9cm}}
 \toprule
-Problème & Solution \\
+Situation & Explication liée au projet \\
 \midrule
-Le message ne s'extrait pas & Vérifier que l'image est bien le PNG stego, pas une capture ou un JPEG recompressé. \\
-Le modèle donne un verdict inattendu & Comparer SVM et RF, regarder les seuils et tester avec une image produite par l'application. \\
-L'entraînement est lent & Augmenter \texttt{--workers}, garder les features en cache quand on teste seulement les modèles. \\
-Les accents s'affichent mal dans PowerShell & Le fichier peut être correct en UTF-8 même si la console affiche mal. Vérifier avec Python ou ouvrir dans l'éditeur. \\
-Le PPTX ne s'écrase pas & Fermer PowerPoint ou Google Drive Sync, ou générer un nouveau fichier corrigé. \\
+Le message ne s'extrait pas & L'extraction exige une image PNG non recompressée produite par notre protocole : en-tête de 32 bits, payload UTF-8 et marqueur de fin. Une capture, un JPEG ou une image modifiée peut casser les LSB. \\
+Le détecteur classe mal une image & Le verdict dépend des features extraites et des seuils validés. Il faut lire séparément les probabilités SVM et Random Forest, surtout si l'image est proche de la frontière de décision. \\
+Une image propre semble suspecte & Les plans LSB d'une image naturelle peuvent déjà ressembler à du bruit. Le modèle ne regarde donc pas seulement un plan LSB visuel, mais plusieurs statistiques : ratios, autocorrélation, LBP, GLCM, histogrammes et moments. \\
+Un message très court est utilisé & Un petit payload modifie peu de valeurs RGB. La détection peut alors être moins évidente, sauf si l'en-tête LSB de notre protocole reste détectable. \\
+Un message très long est utilisé & Plus le payload est long, plus le nombre de valeurs RGB modifiées augmente. La différence amplifiée devient plus visible, mais l'image normale peut rester proche de l'originale. \\
 \bottomrule
 \end{longtable}
 
