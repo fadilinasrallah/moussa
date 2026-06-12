@@ -83,6 +83,48 @@ Dans un canal RGB, changer le LSB change une valeur de 0 ou 1. Sur une échelle 
 
 Mais discret ne veut pas dire indétectable. Si on modifie beaucoup de LSB pour écrire un message, on change la distribution statistique de cette couche. Le cours de traitement d'images intervient ici : on ne regarde plus seulement l'image RGB normale, on regarde des représentations transformées.
 
+\begin{figure}[h]
+\centering
+\begin{minipage}{0.31\linewidth}
+\centering
+\includegraphics[width=\linewidth]{presentation_assets/canal_rouge.png}
+\small Canal rouge
+\end{minipage}
+\hfill
+\begin{minipage}{0.31\linewidth}
+\centering
+\includegraphics[width=\linewidth]{presentation_assets/canal_vert.png}
+\small Canal vert
+\end{minipage}
+\hfill
+\begin{minipage}{0.31\linewidth}
+\centering
+\includegraphics[width=\linewidth]{presentation_assets/canal_bleu.png}
+\small Canal bleu
+\end{minipage}
+
+\vspace{0.35cm}
+
+\begin{minipage}{0.31\linewidth}
+\centering
+\includegraphics[width=\linewidth]{presentation_assets/lsb_rouge.png}
+\small Plan LSB rouge
+\end{minipage}
+\hfill
+\begin{minipage}{0.31\linewidth}
+\centering
+\includegraphics[width=\linewidth]{presentation_assets/lsb_vert.png}
+\small Plan LSB vert
+\end{minipage}
+\hfill
+\begin{minipage}{0.31\linewidth}
+\centering
+\includegraphics[width=\linewidth]{presentation_assets/lsb_bleu.png}
+\small Plan LSB bleu
+\end{minipage}
+\caption{Décomposition réelle de l'image utilisée pour la démonstration : canaux RGB puis plans LSB. Les plans LSB ressemblent à du bruit, mais c'est précisément la couche manipulée par l'insertion.}
+\end{figure}
+
 \section{Algorithme d'insertion LSB}
 Notre classe \texttt{LSBSteganography} lit l'image en RGB, transforme le message en UTF-8, ajoute un marqueur de fin, puis écrit les bits dans les valeurs RGB aplaties.
 
@@ -114,6 +156,28 @@ Le marqueur \texttt{<<<END>>>} sert de deuxième contrôle. L'en-tête dit combi
 
 \subsection*{Pourquoi mesurer le PSNR}
 Le PSNR mesure la différence entre l'image propre et l'image stego. Plus il est haut, plus la différence est faible. Dans ce projet, le PSNR sert à relier l'insertion LSB à une mesure classique de traitement d'images : nous montrons que la modification est faible non seulement visuellement, mais aussi numériquement.
+
+\begin{figure}[h]
+\centering
+\begin{minipage}{0.31\linewidth}
+\centering
+\includegraphics[width=\linewidth]{presentation_assets/demo_clean.png}
+\small Image propre
+\end{minipage}
+\hfill
+\begin{minipage}{0.31\linewidth}
+\centering
+\includegraphics[width=\linewidth]{presentation_assets/demo_stego.png}
+\small Image stego
+\end{minipage}
+\hfill
+\begin{minipage}{0.31\linewidth}
+\centering
+\includegraphics[width=\linewidth]{presentation_assets/difference_amplifiee.png}
+\small Différence amplifiée
+\end{minipage}
+\caption{Comparaison de l'image propre, de l'image contenant le texte caché et de la différence amplifiée. Les deux premières images sont presque identiques à l'oeil, tandis que l'amplification révèle les valeurs RGB modifiées.}
+\end{figure}
 
 \section{Algorithme d'extraction}
 L'extraction fait l'opération inverse :
@@ -180,6 +244,12 @@ Cette partie est très importante parce qu'elle montre qu'on ne se contente pas 
 
 \section{Visualisations dans l'application}
 L'application ne montre pas seulement une réponse. Elle affiche des étapes visuelles réelles calculées sur l'image courante.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.88\linewidth]{presentation_assets_2/test_difference_amplifiee.png}
+\caption{Exemple visuel généré pendant les tests : différence amplifiée après insertion LSB. Cette image aide à expliquer que la modification est spatialement localisée dans les pixels, même si elle reste très faible dans l'image normale.}
+\end{figure}
 
 \subsection{Détection}
 Pour une image testée, l'onglet détection affiche :
